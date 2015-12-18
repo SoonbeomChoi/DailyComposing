@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <script type="text/javascript" src="nexusUI.js"></script>
+    <script type="text/javascript" src="screenfull.min.js"></script>
+    <script type="text/javascript" src="audiosynth.js"></script>
+    <style>
+        html,body { height : 100%;  width : 100%;  margin : 0px; padding : 0px;  }
+        #workspace{ height:568px;  width:782px;  overflow-x:auto; overflow-y:hidden}
+        #beat_matrix{ height:547px; width:3128px;}
+        #position{ height:547px; width:3128px;}
+    </style>
+</head>
+
+<body>
+    <canvas id="notebar" height="552" width="170" style="top:0px;left:0px;position:fixed;z-index:1"></canvas>
+    <canvas nx="toggle" id="play_button" style="height:50px;width:50px;top:10px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id ="bpm" style="height:50px;width:80px;top:11px;left:62px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="tabs" id="num_of_bars" style="height:35px;width:140px;top:69px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="tabs" id="quantize_select" style="height:35px;width:140px;top:113px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="tabs" id="tones" style="height:35px;width:140px;top:157px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="tabs" id="drum" style="height:35px;width:140px;top:201px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="select" id="scale" style="height:35px;width:140px;top:245px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline1" style="height:35px;width:31px;top:289px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline2" style="height:35px;width:31px;top:289px;left:40px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline3" style="height:35px;width:31px;top:289px;left:76px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline4" style="height:35px;width:31px;top:289px;left:112px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline5" style="height:35px;width:31px;top:331px;left:3px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline6" style="height:35px;width:31px;top:331px;left:40px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline7" style="height:35px;width:31px;top:331px;left:76px;position:fixed;z-index:2;"></canvas>
+    <canvas nx="number" id="bassline8" style="height:35px;width:31px;top:331px;left:112px;position:fixed;z-index:2;"></canvas>
+    <button id="duplicate" style="height:35px;width:140px;top:419px;left:3px;position:fixed;z-index:2;" onclick="duplicate()">Duplicate</button>
+    <button id="save" style="height:35px;width:140px;top:463px;left:3px;position:fixed;z-index:2;" onclick = "save()">Save</button>
+    <button id="load" style="height:35px;width:140px;top:507px;left:3px;position:fixed;z-index:2;" onclick = "load()">Load</button>
+    <div id = "workspace" style ="top:0px; left:175px; position:fixed; z-index:2;">
+        <canvas nx="matrix" id="beat_matrix" style="top:0px; left:0px;position:relative;z-index:2;"></canvas>
+        <canvas id="position" style="top:-550px;left:0px;position:relative;z-index:1;"></canvas>
+    </div>
+    <button id="left_button" style="height:35px;width:70px;top:375px;left:3px;position:fixed;z-index:2;" onclick="leftScroll()">left</button>
+    <button id="right_button" style="height:35px;width:70px;top:375px;left:73px;position:fixed;z-index:2;" onclick="rightScroll()">right</button>
+<script>
+    var docElm = document.documentElement;
+    if (docElm.requestFullscreen) {
+        docElm.requestFullscreen();
+    }
+    else if (docElm.mozRequestFullScreen) {
+        docElm.mozRequestFullScreen();
+    }
+    else if (docElm.webkitRequestFullScreen) {
+        docElm.webkitRequestFullScreen();
+    }
+    else if (docElm.msRequestFullscreen) {
+        docElm.msRequestFullscreen();
+    }
+
+    if (!window.localStorage){
+        document.write('This browser doesn`t support local storage');
+    }
+
+    // Size parameters
+    var position_canvas = document.getElementById('position');
+    var interval = 3;
+    var matrix_height = position_canvas.height;
+    var matrix_width = position_canvas.width;
+    var notebar_height = 547;
+    var selector_height = 25;
+    var selector_width = 50;
+    var fontSize = 16;
+
+    // Musical parameters
+    var quantize = 1;
+    var notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+    // Widgets
+    var widgets = [];
+    var play_button; var bpm; var num_of_bars; var scale; var quantize_select; var tones; var drum; var beat_matrix; var matrixCol; var matrixRow;
+    var bassline1; var bassline2; var bassline3; var bassline4; var bassline5; var bassline6; var bassline7; var bassline8;
+    var bassline1_val; var bassline2_val; var bassline3_val; var bassline4_val; var bassline5_val; var bassline6_val; var bassline7_val; var bassline8_val; var basslines = [1,1,1,1,1,1,1,1];
+    var start_play; var bpm_val=120; var playspeed; var scale_array = []; var scale_value = "C/Am"; var scaleIndex = 0; var diatonics = []; var tone_preset = []; var toneIndex = 0; var drumIndex = 0; var numOfBars = 8; var playBars = 2; var noteRange = 25;
+    var bottom1; var bottom2; var bottom3; var bottom4;
+    var currentPage = 0;
+
+    diatonics = [0,2,4,5,7,9,11];
+
+    //var audioctx= new AudioContext();
+    // Supersaw
+    Supersaw = (function() {
+        function Supersaw() {
+            var i, saw, _i, _ref;
+            this.context = new AudioContext;
+            this.numSaws = 3;
+            this.detune = 12;
+            this.output = this.context.createGain();
+            this.delay = this.context.createDelay();
+            this.feedbackGain = this.context.createGain();
+            this.delay.delayTime.value = 60/(bpm_val*4);
+            this.feedbackGain.gain.value = 0.35;
+            this.maxGain = 0.4 / this.numSaws;
+            this.attack = 0.001;
+            this.decay = 0.015;
+            this.release = 0.1;
+            this.saws = [];
+        }
+        Supersaw.prototype.play = function(note,octave,time) {
+            var noteIndex = findIndex(notes, note);
+            this.frequency = nx.mtof(noteIndex + (octave + 1)* 12);
+            for (i = _i = 0, _ref = this.numSaws; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+                saw = this.context.createOscillator();
+                saw.type = 'sawtooth';
+                saw.frequency.value = this.frequency;
+                saw.detune.value = -this.detune + i * 2 * this.detune / (this.numSaws - 1);
+                saw.start(0)//this.context.currentTime);
+                saw.stop(this.context.currentTime + time);
+
+                saw.connect(this.output);
+                this.saws.push(saw);
+            }
+            this.output.gain.value = 0;
+            this.output.gain.setValueAtTime(0, this.context.currentTime);
+            this.output.gain.linearRampToValueAtTime(this.maxGain, this.context.currentTime + this.attack, this.decay + 0.001);
+            //this.output.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + time);
+            this.output.connect(this.context.destination);
+
+            this.output.connect(this.delay);
+            this.delay.connect(this.feedbackGain);
+            this.feedbackGain.connect(this.context.destination);
+            //this.output.connect(this.context.destination);
+        };
+        Supersaw.prototype.stop = function(time) {
+            var _this = this;
+            this.output.gain.cancelScheduledValues(time);
+            this.output.gain.setValueAtTime(this.output.gain.value, time);
+            this.output.gain.setTargetAtTime(0, time, this.release / 10);
+            return this.saws.forEach(function(saw) {
+                return saw.stop(time + _this.release);
+            });
+        };
+        Supersaw.prototype.connect = function(target) {
+            return this.output.connect(target);
+        };
+        return Supersaw;
+    })();
+
+    Square = (function() {
+        function Square() {
+            var i, square, _i, _ref;
+            this.context = new AudioContext;
+            this.numSquares = 2;
+            this.detune = 12;
+            this.output = this.context.createGain();
+            this.delay = this.context.createDelay();
+            this.feedbackGain = this.context.createGain();
+            this.delay.delayTime.value = 60/(bpm_val*4);
+            this.feedbackGain.gain.value = 0.35;
+
+            this.maxGain = 0.4 / this.numSquares;
+            this.attack = 0.001;
+            this.decay = 0.015;
+            this.release = 0.1;
+            this.squares = [];
+        }
+        Square.prototype.play = function(note,octave,time) {
+            var noteIndex = findIndex(notes, note);
+            this.frequency = nx.mtof(noteIndex + (octave + 1)* 12);
+            for (i = _i = 0, _ref = this.numSquares; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+                square = this.context.createOscillator();
+                square.type = 'square';
+                square.frequency.value = this.frequency;
+                square.detune.value = -this.detune + i * 2 * this.detune / (this.numSquares - 1);
+                square.start(0)//this.context.currentTime);
+                square.stop(this.context.currentTime + time);
+
+                square.connect(this.output);
+                this.squares.push(square);
+            }
+            this.output.gain.value = 0;
+            this.output.gain.setValueAtTime(0, this.context.currentTime);
+            this.output.gain.linearRampToValueAtTime(this.maxGain, this.context.currentTime + this.attack, this.decay + 0.001);
+            //this.output.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + time);
+            this.output.connect(this.context.destination);
+
+            this.output.connect(this.delay);
+            this.delay.connect(this.feedbackGain);
+            this.feedbackGain.connect(this.context.destination);
+        };
+        Square.prototype.stop = function(time) {
+            var _this = this;
+            this.output.gain.cancelScheduledValues(time);
+            this.output.gain.setValueAtTime(this.output.gain.value, time);
+            this.output.gain.setTargetAtTime(0, time, this.release / 10);
+            return this.squares.forEach(function(square) {
+                return square.stop(time + _this.release);
+            });
+        };
+        Square.prototype.connect = function(target) {
+            return this.output.connect(target);
+        };
+        return Square;
+    })();
+
+    Bass = (function() {
+        function Bass() {
+            var i, saw, _i, _ref;
+            this.context = new AudioContext;
+            this.numSaws = 2;
+            this.detune = 6;
+            this.output = this.context.createGain();
+            this.delay = this.context.createDelay();
+            this.feedbackGain = this.context.createGain();
+            this.delay.delayTime.value = 60/(bpm_val*4);
+            this.feedbackGain.gain.value = 0.15;
+            this.maxGain = 0.3 / this.numSaws;
+            this.attack = 0.001;
+            this.decay = 0.015;
+            this.release = 0;
+            this.lowpass = this.context.createBiquadFilter();
+            this.saws = [];
+            this.lowpass.type = "lowpass";
+            this.lowpass.frequency.value = 1350;
+        }
+        Bass.prototype.play = function(note,octave,time) {
+            var noteIndex = findIndex(notes, note);
+            this.frequency = nx.mtof(noteIndex + (octave)* 12);
+            for (i = _i = 0, _ref = this.numSaws; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+                saw = this.context.createOscillator();
+                saw.type = 'sawtooth';
+                saw.frequency.value = this.frequency;
+                saw.detune.value = -this.detune + i * 2 * this.detune / (this.numSaws - 1);
+                saw.start(this.context.currentTime);
+                saw.stop(this.context.currentTime + time);
+
+                saw.connect(this.lowpass);
+                this.lowpass.connect(this.output);
+                this.saws.push(saw);
+            }
+            this.output.gain.value = 0;
+            this.output.gain.setValueAtTime(0, this.context.currentTime);
+            this.output.gain.linearRampToValueAtTime(this.maxGain, this.context.currentTime + this.attack, this.decay + 0.001);
+            //this.output.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + time);
+            this.output.connect(this.context.destination);
+
+            this.output.connect(this.delay);
+            this.delay.connect(this.feedbackGain);
+            this.feedbackGain.connect(this.context.destination);
+
+        };
+        Bass.prototype.stop = function(time) {
+            var _this = this;
+            this.output.gain.cancelScheduledValues(time);
+            this.output.gain.setValueAtTime(this.output.gain.value, time);
+            this.output.gain.setTargetAtTime(0, time, this.release / 10);
+            return this.saws.forEach(function(saw) {
+                return saw.stop(time + _this.release);
+            });
+        };
+        Bass.prototype.connect = function(target) {
+            return this.output.connect(target);
+        };
+        return Bass;
+    })();
+
+    var piano = Synth.createInstrument('piano');
+    var guitar = Synth.createInstrument('acoustic');
+    var supersaw = new Supersaw();
+    var square = new Square();
+    var bass = new Bass();
+
+    Synth.setVolume(0.5);
+    tone_preset.push(piano);
+    tone_preset.push(guitar);
+    tone_preset.push(supersaw);
+    tone_preset.push(square);
+
+    var context = new AudioContext();
+
+    var kickbuffer;
+    var snarebuffer;
+    var hatbuffer;
+
+    var kick = new XMLHttpRequest();
+    kick.open("Get","kick.mp3",true);
+    kick.responseType = "arraybuffer";
+    kick.onload = function(){
+        context.decodeAudioData(kick.response, function(buffer){kickbuffer = buffer;});
+    }
+    kick.send();
+
+    var snare = new XMLHttpRequest();
+    snare.open("Get","snare.mp3",true);
+    snare.responseType = "arraybuffer";
+    snare.onload = function(){
+        context.decodeAudioData(snare.response, function(buffer){snarebuffer = buffer;});
+    }
+    snare.send();
+
+    var hat = new XMLHttpRequest();
+    hat.open("Get","hat.mp3",true);
+    hat.responseType = "arraybuffer";
+    hat.onload = function(){
+        context.decodeAudioData(hat.response, function(buffer){hatbuffer = buffer;});
+    }
+    hat.send();
+
+    function playdrum(n){
+        var buffertype;
+        if (n == 1) buffertype = kickbuffer;
+        else if (n == 2) buffertype = snarebuffer;
+        else if (n == 3) buffertype = hatbuffer;
+        var playSound = context.createBufferSource();
+        playSound.buffer = buffertype;
+        playSound.connect(context.destination);
+        playSound.start(0);
+    }
+
+    nx.onload = function() {
+        var matrix_element = document.getElementById("beat_matrix");
+        var matrix_context = matrix_element.getContext("2d");
+        var gradient1 = matrix_context.createLinearGradient(0,0,0,12);
+        gradient1.addColorStop(0,"#ffffff"); //#cfe7fa #deefff
+        gradient1.addColorStop(1,"#e5e5e5"); //#6393c1 #98bede
+        var gradient2 = matrix_context.createLinearGradient(0,0,0,12);
+        gradient2.addColorStop(0,"#deefff"); //#cfe7fa #deefff
+        gradient2.addColorStop(1,"#6393c1"); //#6393c1 #98bede
+        var gradient3 = matrix_context.createLinearGradient(0,0,0,12);
+        gradient3.addColorStop(0,"#febbbb");
+        gradient3.addColorStop(1,"#ff0000");
+
+        nx.colorize("accent", gradient2);
+        nx.colorize("fill", gradient1);
+
+
+        num_of_bars.options = ["2","4","6","8"];
+        num_of_bars.fontSize = fontSize;
+        num_of_bars.init();
+
+        quantize_select.options = ["4","8","8T","16"];
+        quantize_select.fontSize = fontSize;
+        quantize_select.init();
+
+        quantize_select.on('*',function(data){
+            quantize =quantize_select.val.index + 1;
+            playspeed = quantize*bpm.val.value;
+            matrixRow = noteRange;
+            matrixCol = 4*quantize*numOfBars;
+            beat_matrix.row = matrixRow;
+            beat_matrix.col =matrixCol;
+            //document.write(matrixCol);
+            beat_matrix.init();
+        })
+
+        bassline1.set({value : 1})
+        bassline1.fontSize = fontSize; bassline1.step = 1; bassline1.min = 1; bassline1.max = 7; bassline1.init();
+
+        bassline2.set({value : 1})
+        bassline2.fontSize = fontSize; bassline2.step = 1; bassline2.min = 1; bassline2.max = 7; bassline2.init();
+
+        bassline3.set({value : 1})
+        bassline3.fontSize = fontSize; bassline3.step = 1; bassline3.min = 1; bassline3.max = 7; bassline3.init();
+
+        bassline4.set({value : 1})
+        bassline4.fontSize = fontSize; bassline4.step = 1; bassline4.min = 1; bassline4.max = 7; bassline4.init();
+
+        bassline5.set({value : 1})
+        bassline5.fontSize = fontSize; bassline5.step = 1; bassline5.min = 1; bassline5.max = 7; bassline5.init();
+
+        bassline6.set({value : 1})
+        bassline6.fontSize = fontSize; bassline6.step = 1; bassline6.min = 1; bassline6.max = 7; bassline6.init();
+
+        bassline7.set({value : 1})
+        bassline7.fontSize = fontSize; bassline7.step = 1; bassline7.min = 1; bassline7.max = 7; bassline7.init();
+
+        bassline8.set({value : 1})
+        bassline8.fontSize = fontSize; bassline8.step = 1; bassline8.min = 1; bassline8.max = 7; bassline8.init();
+
+        play_button.colors.accent = gradient3;
+        play_button.fontSize = 16;
+        play_button.init();
+        start_play = play_button.val.value;
+
+        bpm.set({value : 120})
+        bpm.fontSize = 13;
+        bpm.step = 5; bpm.min = 40; bpm.max = 240;
+        bpm.init();
+        bpm_val = bpm.val.value;
+        playspeed = quantize*bpm.val.value;
+
+        scale.choices = ["C/Am","Db/A#m","D/Bm","Eb/Cm","E/C#m","F/Dm","Gb/D#m","G/Em","Ab/Fm","A/F#m","Bb/Gm","B/G#m"];
+        scale_array = scale.choices;
+        scale_value = scale.choices.value;
+        scale.init();
+
+        tones.options = ["Pi","Gt","Saw","Sq"];
+        tones.fontSize = fontSize;
+        tones.init();
+
+        drum.options = ["No","Dr","Mid","Slow"];
+        drum.fontSize = fontSize;
+        drum.click();
+        drum.init();
+
+        matrixRow = noteRange;
+        matrixCol = 4*1*numOfBars;
+        beat_matrix.row = noteRange;
+        beat_matrix.col = 4*1*numOfBars;
+        beat_matrix.init();
+
+        bpm.on ('*',function(data){
+            bpm_val = bpm.val.value;
+            playspeed = quantize*bpm_val;
+        })
+
+        num_of_bars.on('*',function(data){
+            playBars = 2*(num_of_bars.val.index+1);
+        })
+
+        tones.on('*', function(data){
+            toneIndex = tones.val.index;
+        })
+
+        scale.on('*', function(data){
+            notebar_context.clearRect(0,0,170,554);
+            notebar_context.fillStyle = "black";
+            notebar_context.fillRect(0,0,170,554);
+            scaleIndex = i;
+
+            for (var i = 0;i<scale.choices.length;i++){
+                scaleIndex = i;
+                if (scale.val.text == scale.choices[i]) break;
+            }
+            for (var i=0; i<noteRange; i++){
+                var diatonic = (i-scaleIndex +12)%12;
+                if (diatonic == 0 || diatonic == 2 || diatonic == 4 || diatonic == 5 || diatonic == 7 || diatonic == 9 || diatonic == 11){
+                    notebar_context.fillStyle = "white";
+                }
+                else{
+                    notebar_context.fillStyle = "#6393c1";
+                }
+                notebar_context.fillStyle = '10px';
+                notebar_context.fillText(notes[i%12],155,(25-i)*notebar_height/(noteRange)-4);
+            }
+
+
+        })
+
+        bassline1.on ('*',function(data){
+            basslines[0] = bassline1.val.value;
+        })
+        bassline2.on ('*',function(data){
+            basslines[1] = bassline2.val.value;
+        })
+        bassline3.on ('*',function(data){
+            basslines[2] = bassline3.val.value;
+        })
+        bassline4.on ('*',function(data){
+            basslines[3] = bassline4.val.value;
+        })
+        bassline5.on ('*',function(data){
+            basslines[4] = bassline5.val.value;
+        })
+        bassline6.on ('*',function(data){
+            basslines[5] = bassline6.val.value;
+        })
+        bassline7.on ('*',function(data){
+            basslines[6] = bassline7.val.value;
+        })
+        bassline8.on ('*',function(data){
+            basslines[7] = bassline7.val.value;
+        })
+
+        drum.on('*',function(data){
+            drumIndex = drum.val.index;
+        })
+        play_button.on('*', function(data){
+            beat_matrix.jumpToCol(0);
+            start_play = !start_play;
+            //toneIndex = tones.val.index;
+            if (start_play == 1) {
+                //beat_matrix.stop();
+                playspeed = quantize*bpm.val.value;
+                beat_matrix.sequence(playspeed);
+            }
+            else if (start_play == 0){
+                beat_matrix.stop();
+                beat_matrix.jumpToCol(0);
+            }
+        })
+
+        var workspaceObj = document.getElementById("workspace");
+        beat_matrix.on('*', function(data){
+            if (beat_matrix.clicked == true){
+                quantize =quantize_select.val.index + 1;
+                beat_matrix.row = noteRange;
+                beat_matrix.col = 4*quantize*numOfBars;
+                var quotient2 = Math.floor((noteRange - beat_matrix.cur.row - 1) / 12);
+                var remainder2 = (noteRange - beat_matrix.cur.row - 1) % 12;
+                if (toneIndex == 0) {
+                    tone_preset[toneIndex].play(notes[remainder2], 3 + quotient2, 1);
+                }
+                else if (toneIndex == 1) {
+                    tone_preset[toneIndex].play(notes[remainder2], 2 + quotient2, 80/playspeed);
+                }
+                else if ((toneIndex == 2) || (toneIndex == 3)){
+                    tone_preset[toneIndex].play(notes[remainder2], 3 + quotient2,80/playspeed);
+                }
+            }
+
+            else if (start_play == 1){
+                playspeed = (quantize_select.val.index+1)*bpm.val.value;
+                beat_matrix.sequence(playspeed);
+                if (beat_matrix.place == quantize*4*playBars){
+                    beat_matrix.jumpToCol(0);
+                }
+                if (beat_matrix.place == 0){
+                    workspaceObj.scrollLeft = 0;
+                }
+                if ((beat_matrix.place%(8*quantize) == 0) && (beat_matrix.place != 0)){
+                    workspaceObj.scrollLeft += 782;
+                }
+                for (var j = 0; j < matrixRow; j++) {
+                    if (beat_matrix.matrix[beat_matrix.place][j] == 1) {
+                        var quotient2 = Math.floor((noteRange - j - 1) / 12);
+                        var remainder2 = (noteRange - j - 1) % 12;
+                        if (toneIndex == 0) {
+                            tone_preset[toneIndex].play(notes[remainder2], 3 + quotient2, 1);
+                        }
+                        else if (toneIndex == 1) {
+                            tone_preset[toneIndex].play(notes[remainder2], 2 + quotient2,80/playspeed);
+                        }
+                        else if ((toneIndex == 2) || (toneIndex == 3)){
+                            tone_preset[toneIndex].play(notes[remainder2], 3 + quotient2,80/playspeed);
+                        }
+                    }
+                }
+                var bassnote = notes[(diatonics[basslines[Math.floor(beat_matrix.place/(4*quantize))]-1]+scaleIndex)%12];
+                if (quantize != 3){
+                    if (drumIndex == 1) {
+                        if (beat_matrix.place%(2*quantize) == 0){
+                            playdrum(1);
+                        }
+                        else if (beat_matrix.place%(2*quantize) == quantize){
+                            playdrum(1);
+                            playdrum(2);
+                        }
+                        else if (beat_matrix.place%(quantize) == Math.floor(quantize/2)){
+                            playdrum(3);
+                        }
+                    }
+                    if (drumIndex == 2) {
+                        if (beat_matrix.place%(2*quantize) == 0){
+                            playdrum(1);
+                            bass.play(bassnote,2,80/playspeed);
+
+                        }
+                        else if (beat_matrix.place%(2*quantize) == quantize){
+                            playdrum(1);
+                            playdrum(2);
+                            bass.play(bassnote,2,80/playspeed);
+                        }
+                        else if (beat_matrix.place%(quantize) == Math.floor(quantize/2)){
+                            playdrum(3);
+                            bass.play(bassnote, 3, 80/playspeed);
+                        }
+                    }
+                    if (drumIndex == 3) {
+                        if (beat_matrix.place%(4*quantize) == 0){
+                            playdrum(1);
+                            playdrum(3);
+                            bass.play(bassnote,2,120*quantize/playspeed);
+                        }
+                        else if (beat_matrix.place%(4*quantize) == 2*quantize){
+                            playdrum(2);
+                            playdrum(3);
+                            bass.play(bassnote, 3, 120*quantize/playspeed);
+                        }
+                        else if (beat_matrix.place%(quantize) == 0){
+                            playdrum(3);
+                        }
+                    }
+                }
+                else if (quantize == 3){
+                    if (drumIndex == 1) {
+                        playdrum(3);
+                        if (beat_matrix.place%(2*quantize) == 0){
+                            playdrum(1);
+                        }
+                        else if (beat_matrix.place%(2*quantize) == quantize){
+                            playdrum(1);
+                            playdrum(2);
+                        }
+                    }
+                    if (drumIndex == 2) {
+                        playdrum(3);
+                        if (beat_matrix.place%(2*quantize) == 0){
+                            playdrum(1);
+                            bass.play(bassnote,2,80/playspeed);
+                        }
+                        else if (beat_matrix.place%(2*quantize) == quantize){
+                            playdrum(1);
+                            playdrum(2);
+                            bass.play(bassnote,2,80/playspeed);
+                        }
+                        else if (beat_matrix.place%(quantize) == 2){
+                            bass.play(bassnote, 3, 80/playspeed);
+                        }
+                    }
+                    if (drumIndex == 3) {
+                        playdrum(3);
+                        if (beat_matrix.place%(4*quantize) == 0){
+                            playdrum(1);
+                            bass.play(bassnote,2,120*quantize/playspeed);
+                        }
+                        else if (beat_matrix.place%(4*quantize) == 2*quantize){
+                            playdrum(2);
+                            bass.play(bassnote, 3, 120*quantize/playspeed);
+                        }
+                    }
+                }
+            }
+        })
+
+    }
+
+    // Position bar
+    var position_element = document.getElementById("position");
+    var position_context = position_element.getContext("2d");
+    position_context.moveTo(2,matrix_height/(noteRange));
+    position_context.lineTo(numOfBars*matrix_width-2,matrix_height/(noteRange));
+    position_context.lineWidth = 1;
+    position_context.moveTo(2,8*matrix_height/(noteRange));
+    position_context.lineTo(numOfBars*matrix_width-2,8*matrix_height/(noteRange));
+    position_context.lineWidth = 1;
+    position_context.moveTo(2,13*matrix_height/(noteRange));
+    position_context.lineTo(numOfBars*matrix_width-2,13*matrix_height/(noteRange));
+    position_context.lineWidth = 1;
+    position_context.moveTo(2,20*matrix_height/(noteRange));
+    position_context.lineTo(numOfBars*matrix_width-2,20*matrix_height/(noteRange));
+    position_context.lineWidth = 1;
+    position_context.stroke();
+    for (var i = 1;i<4*numOfBars;i++){
+        position_context.moveTo(i*matrix_width/(quantize*numOfBars),0);
+        position_context.lineTo(i*matrix_width/(quantize*numOfBars),matrix_height-2);
+        position_context.lineWidth = 1;
+        position_context.strokeStyle = "black";
+        if ((i % 4) == 1){
+            position_context.strokeStyle = "white";
+        }
+        position_context.stroke();
+    }
+
+    var notebar_element = document.getElementById("notebar");
+    var notebar_context = notebar_element.getContext("2d");
+    notebar_context.fillStyle = "black";
+    notebar_context.fillRect(0,0,170,554);
+
+    // Note bar
+    for (var i=0; i<noteRange; i++){
+        var diatonic = (i+scaleIndex)%12;
+        if (diatonic == 0 || diatonic == 2 || diatonic == 4 || diatonic == 5 || diatonic == 7 || diatonic == 9 || diatonic == 11){
+            notebar_context.fillStyle = "white";
+        }
+        else{
+            notebar_context.fillStyle = "#6393c1";
+        }
+        notebar_context.fillStyle = '10px';
+        notebar_context.fillText(notes[i%12],155,(25-i)*notebar_height/(noteRange)-4);
+    }
+
+    function duplicate(){
+        for (var i = 0; i < beat_matrix.col / 2; i++) {
+            for (var j = 0; j < beat_matrix.row; j++) {
+                beat_matrix.setCell(beat_matrix.col/2+i, j, beat_matrix.matrix[i][j]);
+            }
+        }
+    }
+
+    function drawLine(x){
+        position_context.moveTo(i*matrix_width/(quantize*numOfBars),0);
+        position_context.lineTo(i*matrix_width/(quantize*numOfBars),matrix_height);
+        position_context.lineWidth = 5;
+        position_context.strokeStyle = "black";
+        position_context.stroke();
+    }
+
+    function findIndex(array,value){
+        var index=0;
+        while(value != array[index]){index++;}
+        return index;
+    }
+
+    function midi2note(row){
+        var note = notes[(noteRange-1-row)%12] + Math.floor((noteRange-1-row)/12);
+    }
+
+    function leftScroll(){
+        var workspaceObj = document.getElementById("workspace");
+        workspaceObj.scrollLeft += -391;
+    }
+
+    function rightScroll(){
+        var workspaceObj = document.getElementById("workspace");
+        workspaceObj.scrollLeft += 391;
+    }
+
+    function save(name){
+        var popurl = "DataBase.html";
+        var popOption = "width=450, height=400, resizable=no, scrollbars=yes, status=no;";
+        window.open(popurl,"",popOption);
+        name = window.prompt("Please enter file name", "Untitled");
+        var keys = [];
+        var nameExist = 0;
+        keys = Object.keys(localStorage);
+        for (var i = 0;i< localStorage.length;i++){
+            if (name == keys[i]) nameExist = 1;
+        }
+        if (nameExist == 1) {
+            var yes = confirm(name + " already exist. Are you sure to overwrite the file?");
+            if (yes == true){
+                var composer = window.prompt("Please enter composer", "Untitled");
+                var today = new Date();
+                var dd = today.getDate();
+                var mm = today.getMonth() + 1;
+                var yyyy = today.getFullYear();
+                if (dd<10){
+                    dd = '0'+dd;
+                }
+                if(mm<10){
+                    mm = '0'+mm;
+                }
+                var today = yyyy + '/' + mm +'/'+dd;
+
+                var data = {
+                    bpm_val:bpm_val,
+                    playBars:playBars,
+                    scale_value:scale_value,
+                    quantizeIndex:quantize_select.val.index,
+                    toneIndex:toneIndex,
+                    basslines:basslines,
+                    matrix:beat_matrix.matrix,
+                    composer:composer,
+                    date:today
+                }
+                localStorage.setItem(name,JSON.stringify(data));
+                alert(name + " is saved!");
+            }
+        }
+    }
+
+    function load(name){
+        var popurl = "DataBase.html";
+        var popOption = "width=450, height=400, resizable=no, scrollbars=yes, status=no;";
+        window.open(popurl,"",popOption);
+        name = window.prompt("Please enter file name");
+        var keys = [];
+        var nameExist = 0;
+        keys = Object.keys(localStorage);
+        for (var i = 0;i< localStorage.length;i++){
+            if (name == keys[i]) nameExist = 1;
+        }
+        if (nameExist == 1) {
+            var data = JSON.parse(localStorage[name]);
+            bpm.val.value = data.bpm_val; bpm.init();
+            num_of_bars.val.index = data.playBars/2-1;
+            scale.val.value = data.scale_value;
+            quantize_select.val.index = data.quantizeIndex;
+            tones.val.index = data.toneIndex;
+            tones.draw();
+            bassline1.val.value = data.basslines[0];
+            bassline2.val.value = data.basslines[1];
+            bassline3.val.value = data.basslines[2];
+            bassline4.val.value = data.basslines[3];
+            bassline5.val.value = data.basslines[4];
+            bassline6.val.value = data.basslines[5];
+            bassline7.val.value = data.basslines[6];
+            bassline8.val.value = data.basslines[7];
+            bassline1.init(); bassline2.init(); bassline3.init(); bassline4.init(); bassline5.init(); bassline6.init(); bassline7.init(); bassline8.init();
+            beat_matrix.matrix = data.matrix;
+            beat_matrix.init();
+        }
+        else if (nameExist == 0){
+            alert(name +" does not exist!");
+        }
+    }
+</script>
+<style>
+    body{
+        /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#b5bdc8+0,828c95+36,28343b+100;Grey+Black+3D */
+        background: rgb(181,189,200); /* Old browsers */
+        background: -moz-linear-gradient(top, rgba(181,189,200,1) 0%, rgba(130,140,149,1) 36%, rgba(40,52,59,1) 100%); /* FF3.6-15 */
+        background: -webkit-linear-gradient(top, rgba(181,189,200,1) 0%,rgba(130,140,149,1) 36%,rgba(40,52,59,1) 100%); /* Chrome10-25,Safari5.1-6 */
+        background: linear-gradient(to bottom, rgba(181,189,200,1) 0%,rgba(130,140,149,1) 36%,rgba(40,52,59,1) 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#b5bdc8', endColorstr='#28343b',GradientType=0 ); /* IE6-9 */
+    }
+</style>
+</body>
+</html>
