@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.10/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+<h1>Database</h1>
+    <table id="DataBase" class="cell-border" cellspacing="0" width="100%"></table>
+    <button id="erase"  onclick = "remove()">remove</button>
+    <script>
+        var keys = [];
+        var dataSet = [];
+        keys = Object.keys(localStorage);
+        for (var i = 0;i< localStorage.length;i++){
+            var data = JSON.parse(localStorage.getItem(keys[i]));
+            var info = [keys[i],data.composer,data.bpm_val,data.date];
+            dataSet.push(info);
+        }
+        $(document).ready(function(){
+            $('#DataBase').DataTable({
+                data : dataSet,
+                columns:[
+                    {title:"Name"},
+                    {title:"Composer"},
+                    {title:"BPM"},
+                    {title:"Date"}
+                ]
+            });
+        });
+
+        function remove(){
+            var name = window.prompt("Please enter file name");
+            localStorage.removeItem(name);
+            alert(name + " is erased!");
+        }
+    </script>
+
+</body>
+</html>
